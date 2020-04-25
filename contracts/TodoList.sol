@@ -2,19 +2,19 @@ pragma solidity 0.5.16;
 
 contract TodoList {
    struct Todo {
-      uint256 id;
+      uint id;
       bytes32 content;
       address owner;
       bool isCompleted;
-      uint256 timestamp;
+      uint timestamp;
    }
    
-   uint256 public constant maxAmountOfTodos = 100;
+   uint public constant maxAmountOfTodos = 100;
 
    // Owner => todos
    mapping(address => Todo[maxAmountOfTodos]) public todos;
    // Owner => last todo id
-   mapping(address => uint256) public lastIds;
+   mapping(address => uint) public lastIds;
    modifier onlyOwner(address _owner) {
       require(msg.sender == _owner);
       _;
@@ -27,7 +27,7 @@ contract TodoList {
       else lastIds[msg.sender]++;
    }
    // Mark a todo as completed
-   function markTodoAsCompleted(uint256 _todoId) public onlyOwner(todos[msg.sender][_todoId].owner) {
+   function markTodoAsCompleted(uint _todoId) public onlyOwner(todos[msg.sender][_todoId].owner) {
       require(_todoId < maxAmountOfTodos);
       require(!todos[msg.sender][_todoId].isCompleted);
       
