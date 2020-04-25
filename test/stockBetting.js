@@ -1,10 +1,10 @@
-const BettingContract = artifacts.require('./BettingContract.sol')
+const StockBetting = artifacts.require('./StockBetting.sol')
 const assert = require('assert')
 const truffleAssert = require('truffle-assertions');
 
-contract('BettingContract_unittest', (accounts) => {
+contract('StockBetting_unittest', (accounts) => {
    beforeEach(async () => {
-      contractInstance = await BettingContract.deployed()
+      contractInstance = await StockBetting.deployed()
    })
    it('Constructor test', async () => {
       const accountOne = accounts[0];
@@ -70,9 +70,9 @@ contract('BettingContract_unittest', (accounts) => {
 })
  
 
-contract('BettingContract_integration', (accounts) => {
+contract('StockBetting_integration', (accounts) => {
    beforeEach(async () => {
-      contractInstance = await BettingContract.deployed()
+      contractInstance = await StockBetting.deployed()
    })
    // A bid, B bid 
    it('Usual Workflow', async () => {
