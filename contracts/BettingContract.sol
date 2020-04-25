@@ -11,11 +11,12 @@ contract BettingContract {
     // todo: person? Bid-> Bider
     struct Bid {
         // bytes32 name;   // short name (up to 32 bytes)
-        uint bid; // number of accumulated votes
+        uint256 bid; // number of accumulated votes
         address payable account;
     }
 
     Bid[] public bids;
+    // mapping(address => Bid) public bids;
 
     // address payable public person_a;
     // address payable public person_b;
@@ -36,7 +37,7 @@ contract BettingContract {
 
     // Events that will be emitted on changes.
     // event HighestBidIncreased(address bidder, uint amount);
-    event BettingEnded(address winner, uint256 amount);
+    event Payout(address payable winner, uint256 payout);
 
     // The following is a so-called natspec comment,
     // recognizable by the three slashes.
@@ -125,7 +126,8 @@ contract BettingContract {
     /// End the auction and send the highest bid
     /// to the beneficiary.
     // This function is called by executionContract, that is owned by StockVoting
-    function bettingEnd(uint256 stockValue) public {
+    //  function bet(uint8 number) external payable {
+    function bettingEnd(uint256  stockValue) external payable {
         // It is a good guideline to structure functions that interact
         // with other contracts (i.e. they call functions or send Ether)
         // into three phases:
@@ -160,9 +162,19 @@ contract BettingContract {
         // value needs to be transfered to the 
         // actualValue=msg.value;
 
-        emit BettingEnded(msg.sender, stockValue);
+        // todo: change to payout
+        emit Payout(msg.sender, stockValue);
 
         // 3. Interaction
         // beneficiary.transfer(highestBid);
+    }
+
+    // Getter/Setter
+    function getBidofAccount(address bider) public view returns(uint256) {
+        for (uint p = 0; p < bids.length; p++) {
+            if (bids[p].account ==  bider) {
+                return bids[p].bid;
+            }
+        }
     }
 }
