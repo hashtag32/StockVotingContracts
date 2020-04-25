@@ -165,6 +165,7 @@ contract BettingContract {
         //todo: check time
 
         // require(now >= bidEndTime, "Biding Time is not over yet.");
+        require(msg.sender==chairperson, "Not the rights to end this contract.");
         require(!ended, "Contract has already ended.");
 
         // 2. Effects
@@ -172,6 +173,7 @@ contract BettingContract {
         // value needs to be transfered to the 
         // actualValue=msg.value;
         uint payoutsum=0;
+        //todo: optimize -> not safe
         uint diff=10000;
         // closestbid=0;
         address payable winner;
@@ -182,7 +184,6 @@ contract BettingContract {
                 diff=stockValue-bids[p].bid;
                 winner=bids[p].account;
             }
-
         }
 
         // todo: change to payout
