@@ -13,17 +13,9 @@ contract('StockBetting_unittest', (accounts) => {
       assert.equal(accountOne, chairPerson);
    })
    it('Bid function test', async () => {
-      await contractInstance.bid(210,10)
-
       const accountOne = accounts[0];
-      const BidValueAcc1= (await contractInstance.getBidofAccount.call(accountOne)).toNumber();
+      await contractInstance.bid(210, { from: accountOne, value: 5 });
 
-      assert.equal(BidValueAcc1.valueOf(), 210);
-   })
-   it('Bid function test', async () => {
-      await contractInstance.bid(210,20)
-
-      const accountOne = accounts[0];
       const BidValueAcc1= (await contractInstance.getBidofAccount.call(accountOne)).toNumber();
 
       assert.equal(BidValueAcc1.valueOf(), 210);
@@ -37,7 +29,7 @@ contract('StockBetting_unittest', (accounts) => {
 
       // Is event transmitted during execution of bettingEnd
       truffleAssert.eventEmitted(result, 'Payout', (ev) => {
-         return ev.winner == accountOne && ev.payout.toNumber() === 30;
+         return ev.winner == accountOne && ev.payout.toNumber() == 5;
       });
    })
 
@@ -59,7 +51,7 @@ contract('StockBetting_unittest', (accounts) => {
    })
 
    it('Trying to end contract with chairperson, but already ended', async () => {
-      const number= 2000;
+      const number= 200;
       const chairPerson= await contractInstance.chairperson.call();
 
       await truffleAssert.reverts(
@@ -74,35 +66,69 @@ contract('StockBetting_integration', (accounts) => {
    beforeEach(async () => {
       contractInstance = await StockBetting.deployed()
    })
-   // A bid, B bid 
-   it('Usual Workflow', async () => {
+   // A bid && B bid 
+   it('Usual Workflow (a wins)', async () => {
       // Constructor (chairperson)
       const accountZero = accounts[0];
       
       const accountOne = accounts[1];
-      bidvalue1=100;
-      bidsum1=10;
+      bidvalue1=200;
+      bidamount1=20;
 
-      await contractInstance.bid(bidvalue1, bidsum1, { from: accountOne });
+      await contractInstance.bid(bidvalue1, { from: accountOne, value: bidamount1 });
 
       const accountTwo = accounts[2];
-      bidvalue2=200;
-      bidsum2=20;
+      bidvalue2=100;
+      bidamount2=10;
 
-      await contractInstance.bid(bidvalue2, bidsum2, { from: accountTwo });
+      await contractInstance.bid(bidvalue2, { from: accountTwo, value:bidamount2 });
 
+      // So accountTwo is the winner
       let bettingEndCall = await contractInstance.bettingEnd(160, { from: accountZero });
       
       // Is event transmitted during execution of bettingEnd
+      let sum=bidamount1+bidamount2;
       truffleAssert.eventEmitted(bettingEndCall, 'Payout', (ev) => {
-         return ev.winner == accountOne && ev.payout.toNumber() === (bidsum1+bidsum2);
+         return (ev.winner == accountOne) && (ev.payout.toNumber() == sum);
+      });
+      
+      // Test chairPerson 
+      const chairPerson= await contractInstance.chairperson.call();
+      assert.equal(accountZero, chairPerson);
+
+   })
+
+    // A bid && B bid 
+    it('Usual Workflow (b wins)', async () => {
+      contractInstance = await StockBetting.new(30);
+      // Constructor (chairperson)
+      const accountZero = accounts[0];
+      
+      const accountOne = accounts[1];
+      bidvalue1=200;
+      bidamount1=20;
+
+      await contractInstance.bid(bidvalue1, { from: accountOne, value: bidamount1 });
+
+      const accountTwo = accounts[2];
+      bidvalue2=100;
+      bidamount2=10;
+
+      await contractInstance.bid(bidvalue2, { from: accountTwo, value:bidamount2 });
+
+      // So accountTwo is the winner
+      let bettingEndCall = await contractInstance.bettingEnd(80, { from: accountZero });
+      
+      // Is event transmitted during execution of bettingEnd
+      let sum=bidamount1+bidamount2;
+      truffleAssert.eventEmitted(bettingEndCall, 'Payout', (ev) => {
+         return (ev.winner == accountTwo) && (ev.payout.toNumber() == sum);
       });
       
       const chairPerson= await contractInstance.chairperson.call();
       assert.equal(accountZero, chairPerson);
-   })
 
-   // Payout -> Sum correct and event gepublished
+   })
    // transfered to correct recipient
 })
  

@@ -15,13 +15,14 @@ contract StockBetting {
     }
 
     Bid[] public bids;
+
     // mapping(address => Bid) public bids;
 
     uint public bidEndTime;
     // bytes32 public StockSymbol;
 
     // admin of the contract -> StockVoting
-    address public chairperson;
+    address payable public chairperson;
 
     //todo: publish address of winner (after contract ended)
 
@@ -31,18 +32,19 @@ contract StockBetting {
 
     // Events that will be emitted on changes.
     event Payout(address payable winner, uint payout);
+    event Debug(uint value);
 
     constructor(
         uint _biddingTime
     ) public {
         chairperson = msg.sender;
-        // todo: block.timestamp
-        bidEndTime = block.timestamp + _biddingTime;
+        // todo: Safe?
+        bidEndTime = now + _biddingTime;
     }
 
     /// Bid on the auction with the value sent
     /// together with this transaction.
-    function bid(uint bidValue, uint amount) public payable {
+    function bid(uint bidValue) public payable {
         // The keyword payable
         // is required for the function to
         // be able to receive Ether.
@@ -57,7 +59,7 @@ contract StockBetting {
         bids.push(Bid({
             account: msg.sender,
             bid: bidValue,
-            amount: amount
+            amount: msg.value
         }));
 
 
@@ -89,16 +91,22 @@ contract StockBetting {
 
         // 2. Effects
         ended = true;
-        uint payoutsum=0;
+        uint payoutsum = 0;
         //todo: optimize -> not safe
-        uint diff=10000;
+        // int distance = Math.abs(numbers[0] - myNumber);
+        uint previous_diff = 10000;
         address payable winner;
+
         for (uint p = 0; p < bids.length; p++) {
             payoutsum = payoutsum + bids[p].amount;
-            if(diff>(stockValue-bids[p].bid))
+            uint bidValue = bids[p].bid;
+            //Calculate absolute value (distance to stockValue)
+            uint diffStock = (stockValue > bidValue) ? stockValue - bidValue : bidValue - stockValue;
+
+            if(previous_diff>diffStock)
             {
-                diff=stockValue-bids[p].bid;
-                winner=bids[p].account;
+                previous_diff = diffStock;
+                winner = bids[p].account;
             }
         }
 
@@ -109,11 +117,15 @@ contract StockBetting {
     }
 
     // Getter/Setter
-    function getBidofAccount(address bider) public view returns(uint) {
+    function getBidofAccount(address payable bider) public view returns(uint) {
         for (uint p = 0; p < bids.length; p++) {
             if (bids[p].account == bider){
                 return bids[p].bid;
             }
         }
     }
+
+   	function getBalance(address addr) public view returns(uint) {
+		return addr.balance;
+	}
 }
