@@ -1,6 +1,7 @@
 pragma solidity 0.5.16;
 
 //todo: StockBetting
+// This contract is unique per stock, but the 
 contract BettingContract {
     // Parameters of the auction. Times are either
     // absolute unix timestamps (seconds since 1970-01-01)
@@ -11,8 +12,10 @@ contract BettingContract {
     // todo: person? Bid-> Bider
     struct Bid {
         // bytes32 name;   // short name (up to 32 bytes)
-        uint256 bid; // number of accumulated votes
         address payable account;
+
+        uint bid; // estimated stock value in now + _biddingtime
+        uint amount; // Bet einsatz
     }
 
     Bid[] public bids;
@@ -21,6 +24,10 @@ contract BettingContract {
     // address payable public person_a;
     // address payable public person_b;
     uint public bidEndTime;
+    // bytes32 public StockSymbol;
+
+    // admin of the contract -> StockVoting
+    address public chairperson;
 
     //todo: publish address of winner (after contract ended)
     // Current state of the auction.
@@ -37,7 +44,7 @@ contract BettingContract {
 
     // Events that will be emitted on changes.
     // event HighestBidIncreased(address bidder, uint amount);
-    event Payout(address payable winner, uint256 payout);
+    event Payout(address payable winner, uint payout);
 
     // The following is a so-called natspec comment,
     // recognizable by the three slashes.
@@ -47,19 +54,21 @@ contract BettingContract {
     /// Create a simple auction with `_biddingTime`
     /// seconds bidding time on behalf of the
     /// beneficiary address `_beneficiary`.
-    // constructor(
-    //     uint _biddingTime
-    //     // address payable _beneficiary
-    // ) public {
-    //     // beneficiary = _beneficiary;
-    //     bidEndTime = now + _biddingTime;
-    // }
+    constructor(
+        uint _biddingTime
+        // address payable _beneficiary
+    ) public {
+        chairperson = msg.sender;
+        // beneficiary = _beneficiary;
+        // todo: block.timestamp
+        bidEndTime = now + _biddingTime;
+    }
 
     /// Bid on the auction with the value sent
     /// together with this transaction.
     /// The value will only be refunded if the
     /// auction is not won.
-    function bid(uint256 bidValue) public payable {
+    function bid(uint bidValue, uint amount) public payable {
         // No arguments are necessary, all
         // information is already part of
         // the transaction. The keyword payable
@@ -85,7 +94,8 @@ contract BettingContract {
 
         bids.push(Bid({
             account: msg.sender,
-            bid: bidValue
+            bid: bidValue,
+            amount: amount
         }));
 
         //tocheck: Need to send money back to loser?
@@ -127,7 +137,7 @@ contract BettingContract {
     /// to the beneficiary.
     // This function is called by executionContract, that is owned by StockVoting
     //  function bet(uint8 number) external payable {
-    function bettingEnd(uint256  stockValue) external payable {
+    function bettingEnd(uint  stockValue) external payable {
         // It is a good guideline to structure functions that interact
         // with other contracts (i.e. they call functions or send Ether)
         // into three phases:
@@ -154,25 +164,38 @@ contract BettingContract {
 
         //todo: check time
 
-        // require(now >= bidEndTime, "Auction not yet ended.");
-        // require(!ended, "auctionEnd has already been called.");
+        // require(now >= bidEndTime, "Biding Time is not over yet.");
+        require(!ended, "Contract has already ended.");
 
         // 2. Effects
         ended = true;
         // value needs to be transfered to the 
         // actualValue=msg.value;
+        uint payoutsum=0;
+        uint diff=10000;
+        // closestbid=0;
+        address payable winner;
+        for (uint p = 0; p < bids.length; p++) {
+            payoutsum = payoutsum + bids[p].amount;
+            if(diff>(stockValue-bids[p].bid))
+            {
+                diff=stockValue-bids[p].bid;
+                winner=bids[p].account;
+            }
+
+        }
 
         // todo: change to payout
-        emit Payout(msg.sender, stockValue);
+        emit Payout(winner, payoutsum);
 
         // 3. Interaction
         // beneficiary.transfer(highestBid);
     }
 
     // Getter/Setter
-    function getBidofAccount(address bider) public view returns(uint256) {
+    function getBidofAccount(address bider) public view returns(uint) {
         for (uint p = 0; p < bids.length; p++) {
-            if (bids[p].account ==  bider) {
+            if (bids[p].account == bider){
                 return bids[p].bid;
             }
         }
