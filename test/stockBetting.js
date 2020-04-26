@@ -75,17 +75,17 @@ contract('StockBetting_unittest', (accounts) => {
 contract('StockBetting_integration', (accounts) => {
    beforeEach(async () => {
       contractInstance = await StockBetting.deployed();
-      const accountZero = accounts[0];
-      const accountOne = accounts[1];
-      const accountTwo = accounts[2];
-      const winnerAccount=accountOne;
-      const loserAccount=accountTwo;
+      accountZero = accounts[0];
+      accountOne = accounts[1];
+      accountTwo = accounts[2];
+      winnerAccount=accountOne;
+      loserAccount=accountTwo;
       bidvalue1=200;
       bidamount1=20;
       bidvalue2=100;
       bidamount2=10;
    })
-   // 1 bid %% 2 bid 
+   // 1 bid && 2 bid 
    it('Usual Workflow (1 wins)', async () => {
 
       // Action
@@ -104,19 +104,17 @@ contract('StockBetting_integration', (accounts) => {
          return (ev.winner == winnerAccount) && (ev.payout.toNumber() == payoutsum);
       });
       
-      // Test chairPerson 
-      const chairPerson= await contractInstance.chairperson.call();
-      assert.equal(accountZero, chairPerson);
-
       // Test payout
       const winnerAccountBalanceAfter = (await web3.eth.getBalance(winnerAccount));
       const loserAccountBalanceAfter = (await web3.eth.getBalance(loserAccount));
+
+      // Simplicity, but could be improved
+      // todo:transfered to correct recipient
       assert.equal(loserAccountBalanceAfter, loserAccountBalanceBefore);
-      assert.equal(winnerAccountBalanceAfter, winnerAccountBalanceBefore);
-      // assert.equal(winnerAccountBalanceAfter, winnerAccountBalanceBefore+payoutsum);
+      assert.notEqual(winnerAccountBalanceAfter, winnerAccountBalanceBefore);
    })
 
-    // 1 bid %% 2 bid 
+    // 1 bid && 2 bid 
     it('Usual Workflow (2 wins)', async () => {
       contractInstance = await StockBetting.new(30);
 
@@ -131,36 +129,29 @@ contract('StockBetting_integration', (accounts) => {
       truffleAssert.eventEmitted(bettingEndCall, 'Payout', (ev) => {
          return (ev.winner == accountTwo) && (ev.payout.toNumber() == sum);
       });
-      
-      const chairPerson= await contractInstance.chairperson.call();
-      assert.equal(accountZero, chairPerson);
-
    })
-   // transfered to correct recipient
 })
  
 
 
 contract('StockBetting_time', (accounts) => {
    beforeEach(async () => {
-      contractInstance = await StockBetting.deployed()
-   })
-   it('Test times ', async () => {
-      // Constructor (chairperson)
-      const accountZero = accounts[0];
-      const accountOne = accounts[1];
+      contractInstance = await StockBetting.deployed();
+      accountZero = accounts[0];
+      accountOne = accounts[1];
       bidvalue1=200;
       bidamount1=20;
       bidvalue2=100;
       bidamount2=10;
       seconds_per_days=86400;
 
-      //****Bid****/
+      orig_contract_bidEndTime= await contractInstance.bidEndTime.call();
+   })
+   it('bidEndTim valid ', async () => {
       // Bid within the bid valid time range
       await contractInstance.bid(bidvalue1, { from: accountOne, value: bidamount1 });
 
-      // Bid within the bid valid time range (now + 3 days - 1
-      const orig_contract_bidEndTime= await contractInstance.bidEndTime.call();
+      // Bid within the bid valid time range (now + 3 days - 1)
       let bidEndTime_in2days=orig_contract_bidEndTime - seconds_per_days*1;
 
       // No rights to change value
@@ -172,8 +163,9 @@ contract('StockBetting_time', (accounts) => {
       // Bid within the bid valid time range, but modified date 
       await contractInstance.setbidEndTime(bidEndTime_in2days, { from: accountZero });
       await contractInstance.bid(bidvalue1, { from: accountOne, value: bidamount1 });
+   })
 
-
+   it('bidEndTim invalid ', async () => {
       // Bid outside the bid valid time range 
       let bidEndTime_since1day=orig_contract_bidEndTime - seconds_per_days*4;
       await contractInstance.setbidEndTime(bidEndTime_since1day, { from: accountZero });
@@ -182,33 +174,27 @@ contract('StockBetting_time', (accounts) => {
          contractInstance.bid(bidvalue1, { from: accountOne, value: bidamount1 }),
          "No bid possible anymore, the time to bid has ended"
       );
-
-
+   })
       //****bettingEnd****/
 
       //todo
 
-
-   })
 })
  
 
 contract('StockBetting_conditions', (accounts) => {
    beforeEach(async () => {
-      contractInstance = await StockBetting.deployed()
-   })
-   it('lonely voter ', async () => {
-      // Constructor (chairperson)
-      const accountZero = accounts[0];
-      const accountOne = accounts[1];
+      contractInstance = await StockBetting.deployed();
+      accountZero = accounts[0];
+      accountOne = accounts[1];
       bidvalue1=200;
       bidamount1=20;
-
+   })
+   it('lonely voter', async () => {
       // Voting within the voting time range
       await contractInstance.bid(bidvalue1, { from: accountOne, value: bidamount1 });
 
       // Voting was not possible because only one voter
-      
       let bettingEndCall = await contractInstance.bettingEnd(160, { from: accountZero });
 
       truffleAssert.eventEmitted(bettingEndCall, 'Payout', (ev) => {
