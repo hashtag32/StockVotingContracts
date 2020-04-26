@@ -113,6 +113,8 @@ contract StockBetting {
         emit Payout(winner, payoutsum);
 
         // 3. Interaction
+        // Note that this is not visible on the blockchain, it is only executed through the contract itself
+        // https://ethereum.stackexchange.com/questions/8315/confused-by-internal-transactions
         winner.transfer(payoutsum);
     }
 
@@ -125,7 +127,7 @@ contract StockBetting {
         }
     }
 
-   	function getBalance(address addr) public view returns(uint) {
+   	function getBalance(address payable addr) public view returns(uint) {
 		return addr.balance;
 	}
 }

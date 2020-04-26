@@ -66,40 +66,48 @@ contract('StockBetting_integration', (accounts) => {
    beforeEach(async () => {
       contractInstance = await StockBetting.deployed()
    })
-   // A bid && B bid 
-   it('Usual Workflow (a wins)', async () => {
+   // 1 bid %% 2 bid 
+   it('Usual Workflow (1 wins)', async () => {
       // Constructor (chairperson)
       const accountZero = accounts[0];
-      
       const accountOne = accounts[1];
+      const accountTwo = accounts[2];
+      const winnerAccount=accountOne;
+      const loserAccount=accountTwo;
       bidvalue1=200;
       bidamount1=20;
-
-      await contractInstance.bid(bidvalue1, { from: accountOne, value: bidamount1 });
-
-      const accountTwo = accounts[2];
       bidvalue2=100;
       bidamount2=10;
 
+      // Action
+      await contractInstance.bid(bidvalue1, { from: accountOne, value: bidamount1 });
       await contractInstance.bid(bidvalue2, { from: accountTwo, value:bidamount2 });
 
-      // So accountTwo is the winner
+      // Prerequisites
+      const winnerAccountBalanceBefore = (await web3.eth.getBalance(winnerAccount));
+      const loserAccountBalanceBefore = (await web3.eth.getBalance(loserAccount));
+
       let bettingEndCall = await contractInstance.bettingEnd(160, { from: accountZero });
       
       // Is event transmitted during execution of bettingEnd
-      let sum=bidamount1+bidamount2;
+      let payoutsum=bidamount1+bidamount2;
       truffleAssert.eventEmitted(bettingEndCall, 'Payout', (ev) => {
-         return (ev.winner == accountOne) && (ev.payout.toNumber() == sum);
+         return (ev.winner == winnerAccount) && (ev.payout.toNumber() == payoutsum);
       });
       
       // Test chairPerson 
       const chairPerson= await contractInstance.chairperson.call();
       assert.equal(accountZero, chairPerson);
 
+      // Test payout
+      const winnerAccountBalanceAfter = (await web3.eth.getBalance(winnerAccount));
+      const loserAccountBalanceAfter = (await web3.eth.getBalance(loserAccount));
+      assert.equal(loserAccountBalanceAfter, loserAccountBalanceBefore);
+      // assert.equal(winnerAccountBalanceAfter, winnerAccountBalanceBefore+payoutsum);
    })
 
-    // A bid && B bid 
-    it('Usual Workflow (b wins)', async () => {
+    // 1 bid %% 2 bid 
+    it('Usual Workflow (2 wins)', async () => {
       contractInstance = await StockBetting.new(30);
       // Constructor (chairperson)
       const accountZero = accounts[0];
