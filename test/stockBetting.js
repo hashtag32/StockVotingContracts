@@ -19,6 +19,13 @@ contract('StockBetting_unittest', (accounts) => {
       const BidValueAcc1= (await contractInstance.getBidofAccount.call(accountOne)).toNumber();
 
       assert.equal(BidValueAcc1.valueOf(), 210);
+
+      const accountTwo = accounts[2];
+      await contractInstance.bid(200, { from: accountTwo, value: 10 });
+
+      const BidValueAcc2 = (await contractInstance.getBidofAccount.call(accountTwo)).toNumber();
+
+      assert.equal(BidValueAcc2.valueOf(), 200);
    })
    it('Events are published', async () => {
       const number= 2000;
@@ -29,7 +36,7 @@ contract('StockBetting_unittest', (accounts) => {
 
       // Is event transmitted during execution of bettingEnd
       truffleAssert.eventEmitted(result, 'Payout', (ev) => {
-         return ev.winner == accountOne && ev.payout.toNumber() == 5;
+         return ev.winner == accountOne && ev.payout.toNumber() == 15;
       });
    })
 
@@ -46,7 +53,7 @@ contract('StockBetting_unittest', (accounts) => {
 
       await truffleAssert.reverts(
          contractInstance.bettingEnd(number, { from: accountTwo }),
-         "Not the rights to end this contract."
+         "Not the rights to end this contract"
      );
    })
 
@@ -56,7 +63,7 @@ contract('StockBetting_unittest', (accounts) => {
 
       await truffleAssert.reverts(
          contractInstance.bettingEnd(number, { from: chairPerson }),
-         "Contract has already ended."
+         "Contract has already ended"
      );
    })
 })
@@ -138,5 +145,83 @@ contract('StockBetting_integration', (accounts) => {
 
    })
    // transfered to correct recipient
+})
+ 
+
+
+contract('StockBetting_time', (accounts) => {
+   beforeEach(async () => {
+      contractInstance = await StockBetting.deployed()
+   })
+   it('Test times ', async () => {
+      // Constructor (chairperson)
+      const accountZero = accounts[0];
+      const accountOne = accounts[1];
+      bidvalue1=200;
+      bidamount1=20;
+      bidvalue2=100;
+      bidamount2=10;
+      seconds_per_days=86400;
+
+      //****Bid****/
+      // Bid within the bid valid time range
+      await contractInstance.bid(bidvalue1, { from: accountOne, value: bidamount1 });
+
+      // Bid within the bid valid time range (now + 3 days - 1
+      const orig_contract_bidEndTime= await contractInstance.bidEndTime.call();
+      let bidEndTime_in2days=orig_contract_bidEndTime - seconds_per_days*1;
+
+      // No rights to change value
+      await truffleAssert.reverts(
+         contractInstance.setbidEndTime(bidEndTime_in2days, { from: accountOne }),
+         "Not the rights to change this value"
+      );
+      
+      // Bid within the bid valid time range, but modified date 
+      await contractInstance.setbidEndTime(bidEndTime_in2days, { from: accountZero });
+      await contractInstance.bid(bidvalue1, { from: accountOne, value: bidamount1 });
+
+
+      // Bid outside the bid valid time range 
+      let bidEndTime_since1day=orig_contract_bidEndTime - seconds_per_days*4;
+      await contractInstance.setbidEndTime(bidEndTime_since1day, { from: accountZero });
+      
+      await truffleAssert.reverts(
+         contractInstance.bid(bidvalue1, { from: accountOne, value: bidamount1 }),
+         "No bid possible anymore, the time to bid has ended"
+      );
+
+
+      //****bettingEnd****/
+
+      //todo
+
+
+   })
+})
+ 
+
+contract('StockBetting_conditions', (accounts) => {
+   beforeEach(async () => {
+      contractInstance = await StockBetting.deployed()
+   })
+   it('lonely voter ', async () => {
+      // Constructor (chairperson)
+      const accountZero = accounts[0];
+      const accountOne = accounts[1];
+      bidvalue1=200;
+      bidamount1=20;
+
+      // Voting within the voting time range
+      await contractInstance.bid(bidvalue1, { from: accountOne, value: bidamount1 });
+
+      // Voting was not possible because only one voter
+      
+      let bettingEndCall = await contractInstance.bettingEnd(160, { from: accountZero });
+
+      truffleAssert.eventEmitted(bettingEndCall, 'Payout', (ev) => {
+         return (ev.winner == accountOne) && (ev.payout.toNumber() == bidamount1);
+      });
+   })
 })
  

@@ -17,9 +17,13 @@ contract StockBetting {
     Bid[] public bids;
 
     // mapping(address => Bid) public bids;
-
+    
+    // todo: Change to private
+    // Time how long the contract is active 
+    uint public runEndTime;
+    // Time how long the contract is active 
+    
     uint public bidEndTime;
-    // bytes32 public StockSymbol;
 
     // admin of the contract -> StockVoting
     address payable public chairperson;
@@ -39,7 +43,8 @@ contract StockBetting {
     ) public {
         chairperson = msg.sender;
         // todo: Safe?
-        bidEndTime = now + _biddingTime;
+        runEndTime = now + _biddingTime;
+        bidEndTime = now + 3 days;
     }
 
     /// Bid on the auction with the value sent
@@ -51,10 +56,14 @@ contract StockBetting {
 
         // Revert the call if the bidding
         // period is over.
-        // require(
-        //     now <= bidEndTime,
-        //     "Auction already ended."
-        // );
+        require(
+            now <= runEndTime,
+            "No bid possible anymore, the run time has ended"
+        );
+        require(
+            now <= bidEndTime,
+            "No bid possible anymore, the time to bid has ended"
+        );
 
         bids.push(Bid({
             account: msg.sender,
@@ -85,9 +94,22 @@ contract StockBetting {
         // 2. performing actions (potentially changing conditions)
         // 3. interacting with other contracts
 
-        // require(now >= bidEndTime, "Biding Time is not over yet.");
-        require(msg.sender==chairperson, "Not the rights to end this contract.");
-        require(!ended, "Contract has already ended.");
+        // require(now >= runEndTime, "Biding Time is not over yet");
+        require(msg.sender==chairperson, "Not the rights to end this contract");
+        require(!ended, "Contract has already ended");
+
+
+        if(1==bids.length)
+        {
+            // One on bid Give bider possibility to withdraw bet
+            address payable lonelyBider = bids[0].account;
+            uint bidsum = bids[0].amount;
+            emit Payout(lonelyBider, bidsum);
+
+            //todo: give voter possibility to withdraw money (safer)
+            lonelyBider.transfer(bidsum);
+            return;
+        }
 
         // 2. Effects
         ended = true;
@@ -115,6 +137,8 @@ contract StockBetting {
         // 3. Interaction
         // Note that this is not visible on the blockchain, it is only executed through the contract itself
         // https://ethereum.stackexchange.com/questions/8315/confused-by-internal-transactions
+        //todo: give winner possibility to withdraw money (safer)
+
         winner.transfer(payoutsum);
     }
 
@@ -129,5 +153,14 @@ contract StockBetting {
 
    	function getBalance(address payable addr) public view returns(uint) {
 		return addr.balance;
+	}
+
+    function setrunEndTime(uint _newrunEndTime) public {
+        require(msg.sender==chairperson, "Not the rights to change this value");
+		runEndTime = _newrunEndTime;
+	}
+    function setbidEndTime(uint _newbidEndTime) public {
+        require(msg.sender==chairperson, "Not the rights to change this value");
+		bidEndTime = _newbidEndTime;
 	}
 }
