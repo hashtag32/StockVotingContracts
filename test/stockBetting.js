@@ -23,8 +23,6 @@ contract('StockBetting_unittest', (accounts) => {
       bidValue2=200;
 
       stockValue=2000;
-
-
    })
    it('Constructor test', async () => {
       const chairPerson= await contractInstance.chairperson.call();
@@ -76,11 +74,7 @@ contract('StockBetting_unittest', (accounts) => {
 
 contract('StockBetting_integration', (accounts) => {
    beforeEach(async () => {
-      contractInstance = await StockBetting.deployed()
-   })
-   // 1 bid %% 2 bid 
-   it('Usual Workflow (1 wins)', async () => {
-      // Constructor (chairperson)
+      contractInstance = await StockBetting.deployed();
       const accountZero = accounts[0];
       const accountOne = accounts[1];
       const accountTwo = accounts[2];
@@ -90,6 +84,9 @@ contract('StockBetting_integration', (accounts) => {
       bidamount1=20;
       bidvalue2=100;
       bidamount2=10;
+   })
+   // 1 bid %% 2 bid 
+   it('Usual Workflow (1 wins)', async () => {
 
       // Action
       await contractInstance.bid(bidvalue1, { from: accountOne, value: bidamount1 });
@@ -115,25 +112,15 @@ contract('StockBetting_integration', (accounts) => {
       const winnerAccountBalanceAfter = (await web3.eth.getBalance(winnerAccount));
       const loserAccountBalanceAfter = (await web3.eth.getBalance(loserAccount));
       assert.equal(loserAccountBalanceAfter, loserAccountBalanceBefore);
+      assert.equal(winnerAccountBalanceAfter, winnerAccountBalanceBefore);
       // assert.equal(winnerAccountBalanceAfter, winnerAccountBalanceBefore+payoutsum);
    })
 
     // 1 bid %% 2 bid 
     it('Usual Workflow (2 wins)', async () => {
       contractInstance = await StockBetting.new(30);
-      // Constructor (chairperson)
-      const accountZero = accounts[0];
-      
-      const accountOne = accounts[1];
-      bidvalue1=200;
-      bidamount1=20;
 
       await contractInstance.bid(bidvalue1, { from: accountOne, value: bidamount1 });
-
-      const accountTwo = accounts[2];
-      bidvalue2=100;
-      bidamount2=10;
-
       await contractInstance.bid(bidvalue2, { from: accountTwo, value:bidamount2 });
 
       // So accountTwo is the winner
