@@ -23,6 +23,9 @@ contract('StockBetting_unittest', (accounts) => {
       bidValue2=200;
 
       stockValue=2000;
+
+      orig_contract_runEndTime= await contractInstance.runEndTime.call();
+      runEndTime_in35days=orig_contract_runEndTime - 86400*35;
    })
    it('Constructor test', async () => {
       const chairPerson= await contractInstance.chairperson.call();
@@ -42,7 +45,8 @@ contract('StockBetting_unittest', (accounts) => {
 
       assert.equal(BidValueAcc2.valueOf(), 200);
    })
-   it('Events are published', async () => {
+   it('Payout event published', async () => {
+      await contractInstance.setrunEndTime(runEndTime_in35days, { from: accountZero });
       let result= await contractInstance.bettingEnd(stockValue, { from: accountZero });
 
       // Is event transmitted during execution of bettingEnd
@@ -53,6 +57,7 @@ contract('StockBetting_unittest', (accounts) => {
 
    it('Trying to end contract to !chairperson && already ended', async () => {
       const chairPerson= await contractInstance.chairperson.call();
+      
       assert.equal(accountZero, chairPerson);
 
       await truffleAssert.reverts(
@@ -84,6 +89,9 @@ contract('StockBetting_integration', (accounts) => {
       bidamount1=20;
       bidvalue2=100;
       bidamount2=10;
+
+      orig_contract_runEndTime= await contractInstance.runEndTime.call();
+      runEndTime_in35days=orig_contract_runEndTime - 86400*35;
    })
    // 1 bid && 2 bid 
    it('Usual Workflow (1 wins)', async () => {
@@ -96,6 +104,7 @@ contract('StockBetting_integration', (accounts) => {
       const winnerAccountBalanceBefore = (await web3.eth.getBalance(winnerAccount));
       const loserAccountBalanceBefore = (await web3.eth.getBalance(loserAccount));
 
+      await contractInstance.setrunEndTime(runEndTime_in35days, { from: accountZero });
       let bettingEndCall = await contractInstance.bettingEnd(160, { from: accountZero });
       
       // Is event transmitted during execution of bettingEnd
@@ -122,6 +131,7 @@ contract('StockBetting_integration', (accounts) => {
       await contractInstance.bid(bidvalue2, { from: accountTwo, value:bidamount2 });
 
       // So accountTwo is the winner
+      await contractInstance.setrunEndTime(runEndTime_in35days, { from: accountZero });
       let bettingEndCall = await contractInstance.bettingEnd(80, { from: accountZero });
       
       // Is event transmitted during execution of bettingEnd
@@ -133,7 +143,6 @@ contract('StockBetting_integration', (accounts) => {
 })
  
 
-
 contract('StockBetting_time', (accounts) => {
    beforeEach(async () => {
       contractInstance = await StockBetting.deployed();
@@ -143,9 +152,12 @@ contract('StockBetting_time', (accounts) => {
       bidamount1=20;
       bidvalue2=100;
       bidamount2=10;
+      stockValue=140;
       seconds_per_days=86400;
 
       orig_contract_bidEndTime= await contractInstance.bidEndTime.call();
+      orig_contract_runEndTime= await contractInstance.runEndTime.call();
+      runEndTime_in35days=orig_contract_runEndTime - 86400*35;
    })
    it('bidEndTim valid ', async () => {
       // Bid within the bid valid time range
@@ -175,10 +187,35 @@ contract('StockBetting_time', (accounts) => {
          "No bid possible anymore, the time to bid has ended"
       );
    })
-      //****bettingEnd****/
 
-      //todo
 
+   it('runEndTime invalid ', async () => {
+      // runEndTime still valid
+      let runEndTime_in25days=orig_contract_runEndTime - seconds_per_days*25;
+
+      // No rights to change value
+      await truffleAssert.reverts(
+         contractInstance.setrunEndTime(runEndTime_in25days, { from: accountTwo }),
+         "Not the rights to change this value"
+      );
+      
+      // Set the runEndTime to an invalid range
+      await contractInstance.setrunEndTime(runEndTime_in25days, { from: accountZero });
+
+      await truffleAssert.reverts(
+         contractInstance.bettingEnd(stockValue, { from: accountZero }),
+         "Runtime of contract is not over yet"
+      );
+   })
+
+   it('runEndTim valid ', async () => {
+     // runEndTime still valid
+     let runEndTime_in35days=orig_contract_runEndTime - seconds_per_days*35;
+
+      // Set the runEndTime to an invalid range
+      await contractInstance.setrunEndTime(orig_contract_runEndTime - seconds_per_days*35, { from: accountZero });
+      await contractInstance.bettingEnd(stockValue, { from: accountZero });
+   })
 })
  
 
@@ -189,12 +226,16 @@ contract('StockBetting_conditions', (accounts) => {
       accountOne = accounts[1];
       bidvalue1=200;
       bidamount1=20;
+
+      orig_contract_runEndTime= await contractInstance.runEndTime.call();
+      runEndTime_in35days=orig_contract_runEndTime - 86400*35;
    })
    it('lonely voter', async () => {
       // Voting within the voting time range
       await contractInstance.bid(bidvalue1, { from: accountOne, value: bidamount1 });
 
       // Voting was not possible because only one voter
+      await contractInstance.setrunEndTime(runEndTime_in35days, { from: accountZero });
       let bettingEndCall = await contractInstance.bettingEnd(160, { from: accountZero });
 
       truffleAssert.eventEmitted(bettingEndCall, 'Payout', (ev) => {

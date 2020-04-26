@@ -9,7 +9,7 @@ module.exports = function(deployer) {
   deployer.link(ConvertLib, MetaCoin);
   deployer.deploy(MetaCoin);
   deployer.deploy(TodoList);
-  var BidingTime= 30;
-  deployer.deploy(StockBetting, BidingTime);
+  var runTime= 86400 * 30;
+  deployer.deploy(StockBetting, runTime);
   // deployer.deploy(ExecutionContract);
 };

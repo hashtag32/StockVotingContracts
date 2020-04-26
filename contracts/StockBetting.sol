@@ -39,11 +39,11 @@ contract StockBetting {
     event Debug(uint value);
 
     constructor(
-        uint _biddingTime
+        uint _runTime
     ) public {
         chairperson = msg.sender;
         // todo: Safe?
-        runEndTime = now + _biddingTime;
+        runEndTime = now + _runTime;
         bidEndTime = now + 3 days;
     }
 
@@ -94,8 +94,8 @@ contract StockBetting {
         // 2. performing actions (potentially changing conditions)
         // 3. interacting with other contracts
 
-        // require(now >= runEndTime, "Biding Time is not over yet");
         require(msg.sender==chairperson, "Not the rights to end this contract");
+        require(now >= runEndTime, "Runtime of contract is not over yet");
         require(!ended, "Contract has already ended");
 
 
