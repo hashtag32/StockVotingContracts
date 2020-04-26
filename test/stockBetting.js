@@ -2,37 +2,50 @@ const StockBetting = artifacts.require('./StockBetting.sol')
 const assert = require('assert')
 const truffleAssert = require('truffle-assertions');
 
+
+
+// Using the async/await notation with because we want to wait for each step
+// https://www.trufflesuite.com/docs/truffle/testing/writing-tests-in-javascript
+
+// For further tests, this might be helpful: 
+// https://github.com/OpenZeppelin/openzeppelin-test-helpers/blob/master/README.md
+
+
 contract('StockBetting_unittest', (accounts) => {
+   
    beforeEach(async () => {
-      contractInstance = await StockBetting.deployed()
+      contractInstance = await StockBetting.deployed();
+      accountZero = accounts[0];
+      accountOne = accounts[1];
+      accountTwo = accounts[2];
+
+      bidValue1=210;
+      bidValue2=200;
+
+      stockValue=2000;
+
+
    })
    it('Constructor test', async () => {
-      const accountOne = accounts[0];
       const chairPerson= await contractInstance.chairperson.call();
 
-      assert.equal(accountOne, chairPerson);
+      assert.equal(accountZero, chairPerson);
    })
    it('Bid function test', async () => {
-      const accountOne = accounts[0];
-      await contractInstance.bid(210, { from: accountOne, value: 5 });
+      await contractInstance.bid(bidValue1, { from: accountOne, value: 5 });
 
       const BidValueAcc1= (await contractInstance.getBidofAccount.call(accountOne)).toNumber();
 
       assert.equal(BidValueAcc1.valueOf(), 210);
 
-      const accountTwo = accounts[2];
-      await contractInstance.bid(200, { from: accountTwo, value: 10 });
+      await contractInstance.bid(bidValue2, { from: accountTwo, value: 10 });
 
       const BidValueAcc2 = (await contractInstance.getBidofAccount.call(accountTwo)).toNumber();
 
       assert.equal(BidValueAcc2.valueOf(), 200);
    })
    it('Events are published', async () => {
-      const number= 2000;
-      const accountOne = accounts[0];
-
-
-      let result= await contractInstance.bettingEnd(number, { from: accountOne });
+      let result= await contractInstance.bettingEnd(stockValue, { from: accountZero });
 
       // Is event transmitted during execution of bettingEnd
       truffleAssert.eventEmitted(result, 'Payout', (ev) => {
@@ -41,28 +54,20 @@ contract('StockBetting_unittest', (accounts) => {
    })
 
    it('Trying to end contract to !chairperson && already ended', async () => {
-      const accountZero = accounts[0];
-      const accountTwo = accounts[2];
-      const number= 2000;
-
       const chairPerson= await contractInstance.chairperson.call();
-
       assert.equal(accountZero, chairPerson);
 
-      // let result= await contractInstance.bettingEnd(number, { from: accountTwo });
-
       await truffleAssert.reverts(
-         contractInstance.bettingEnd(number, { from: accountTwo }),
+         contractInstance.bettingEnd(stockValue, { from: accountTwo }),
          "Not the rights to end this contract"
      );
    })
 
    it('Trying to end contract with chairperson, but already ended', async () => {
-      const number= 200;
       const chairPerson= await contractInstance.chairperson.call();
 
       await truffleAssert.reverts(
-         contractInstance.bettingEnd(number, { from: chairPerson }),
+         contractInstance.bettingEnd(stockValue, { from: chairPerson }),
          "Contract has already ended"
      );
    })
