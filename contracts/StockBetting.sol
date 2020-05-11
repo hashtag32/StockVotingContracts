@@ -1,12 +1,7 @@
 pragma solidity 0.5.16;
 
-//todo: StockBetting
-// This contract is unique per stock, but the 
-contract StockBetting {
-    // Parameters of the auction. Times are either
-    // absolute unix timestamps (seconds since 1970-01-01)
-    // or time periods in seconds.
 
+contract StockBetting {
     struct Bid {
         address payable account;
 
@@ -21,8 +16,8 @@ contract StockBetting {
     // todo: Change to private
     // Time how long the contract is active 
     uint public runEndTime;
-    // Time how long the contract is active 
     
+    // Time how long the bids are allowed
     uint public bidEndTime;
 
     // admin of the contract -> StockVoting
@@ -39,12 +34,16 @@ contract StockBetting {
     event Debug(uint value);
 
     constructor(
-        uint _runTime
-    ) public {
-        chairperson = msg.sender;
+        //todo payable
+        address payable _chairperson,
+        uint _runTime,
+        uint _bidTime
+        )
+    public {
+        chairperson = _chairperson;
         // todo: Safe?
         runEndTime = now + _runTime;
-        bidEndTime = now + 3 days;
+        bidEndTime = now + _bidTime;
     }
 
     /// Bid on the auction with the value sent
@@ -162,5 +161,5 @@ contract StockBetting {
     function setbidEndTime(uint _newbidEndTime) public {
         require(msg.sender==chairperson, "Not the rights to change this value");
 		bidEndTime = _newbidEndTime;
-	}
+    }
 }

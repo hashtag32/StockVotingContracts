@@ -125,7 +125,10 @@ contract('StockBetting_integration', (accounts) => {
 
     // 1 bid && 2 bid 
     it('Usual Workflow (2 wins)', async () => {
-      contractInstance = await StockBetting.new(30);
+      var runTime= 86400 * 30;
+      var bidTime= 86400 * 3;
+      var chairPerson="0xeDf9A6E86c516405464eb09C47580C4feB884A84";
+      contractInstance = await StockBetting.new(chairPerson, runTime,bidTime);
 
       await contractInstance.bid(bidvalue1, { from: accountOne, value: bidamount1 });
       await contractInstance.bid(bidvalue2, { from: accountTwo, value:bidamount2 });
@@ -242,5 +245,32 @@ contract('StockBetting_conditions', (accounts) => {
          return (ev.winner == accountOne) && (ev.payout.toNumber() == bidamount1);
       });
    })
+})
+ 
+contract('StockBetting_setter', (accounts) => {
+   beforeEach(async () => {
+      contractInstance = await StockBetting.deployed();
+      accountZero = accounts[0];
+      accountOne = accounts[1];
+
+      chairPerson=accountTwo;
+      var runTime= 86400 * 100;
+      var bidTime= 86400 * 160;
+      contractInstance = await StockBetting.new(chairPerson, runTime,bidTime);
+   })
+   it('chairperson', async () => {
+      const chairPersonContract= await contractInstance.chairperson.call();
+      assert.equal(accountTwo, chairPersonContract);
+   })
+
+   // it('bidEndTime', async () => {
+   //    const bidEndTimeContract= await contractInstance.bidEndTime.call();
+   //    assert.equal(now86400 * 160, bidEndTimeContract);
+   // })
+
+   // it('runEndTime', async () => {
+   //    const runEndTimeContract= await contractInstance.runEndTime.call();
+   //    assert.equal(86400 * 100, runEndTimeContract);
+   // })
 })
  

@@ -10,6 +10,8 @@ module.exports = function(deployer) {
   deployer.deploy(MetaCoin);
   deployer.deploy(TodoList);
   var runTime= 86400 * 30;
-  deployer.deploy(StockBetting, runTime);
+  var bidTime= 86400 * 3;
+  var chairPerson="0xeDf9A6E86c516405464eb09C47580C4feB884A84";
+  deployer.deploy(StockBetting, chairPerson, runTime,bidTime);
   // deployer.deploy(ExecutionContract);
 };
