@@ -24,7 +24,7 @@ contract KnockOut {
     uint public runEndTime;
 
     // Runtime data //
-    struct Shareholder {
+    struct ShareHolder {
         address payable account;
         uint amount;
         uint buying_closing_price;
@@ -45,19 +45,19 @@ contract KnockOut {
     event ShareSold(address payable shareHolderAddress, uint amount);
     // The chairperson can only retract when no Users are active anymore
     // The contract is dissolved
-    event ContractEnded()
+    event ContractEnded();
 
     // param: _chairperson - The oracle/admin of this contract, a trusted party that obtains higher authority
     // param: _knock_out_threshold - Under/Over this threshold of the underlying, the shareholder
     // param: _leverage,
     // param: _runTime -
     // param: _isPut - Determines whether the certificate type is Put or Call
-    constructor(address payable _chairperson, uint _knock_out_threshold, uint _leverage, uint _runTime, uint _isPut)
-    public {
+    constructor(address payable _chairperson, uint _knock_out_threshold, uint _leverage, uint _runTime, bool _isPut)
+    public payable{
         chairperson = _chairperson;
         knock_out_threshold = _knock_out_threshold;
         leverage = _leverage;
-        runTime = now + _runTime;
+        runEndTime = now + _runTime;
         pot = msg.value;
         isPut = _isPut;
         contractCreator = msg.sender;
@@ -68,7 +68,7 @@ contract KnockOut {
         require(!ended, "Contract has already ended");
         require(now <= runEndTime, "Contract is over the runtime");
 
-        activeShareHolder.push(ShareHolder({account: msg.sender, deposit: msg.value, buying_closing_price: last_closing_price}));
+        activeShareHolder.push(ShareHolder({account: msg.sender, amount: msg.value, buying_closing_price: last_closing_price}));
 
         emit ShareBought(msg.sender, msg.value);
 
@@ -83,7 +83,11 @@ contract KnockOut {
 
         for (uint p = 0; p < activeShareHolder.length; p ++) {
             if (activeShareHolder[p].account == msg.sender) {
-                CalcAndUpdatePendingReturn(activeShareHolder[p]);
+                uint stock_price_diff = (last_closing_price - activeShareHolder[p].buying_closing_price) / activeShareHolder[p].buying_closing_price;
+                uint pendingReturn = activeShareHolder[p].amount * stock_price_diff * leverage;
+
+                pendingReturns[activeShareHolder[p].account] = pendingReturn;
+
                 delete activeShareHolder[p];
             }
         }
@@ -94,7 +98,7 @@ contract KnockOut {
     }
 
     // The contract creator can decide to dissolve the contract, the pot goes back to him
-    function retractContract() {
+    function retractContract() public {
         require(msg.sender == contractCreator || msg.sender == chairperson, "Not the rights to perform this action");
         // Only possible if no activeShareHolder are encountered
         require(activeShareHolder.length == 0, "We have active shareHolders");
@@ -110,16 +114,16 @@ contract KnockOut {
 
     // Due Date is over - contract should be ended by contractCreator. So that he can obtain his left pot
     // If he doesn't do it -> chairperson can end it (for the shareholder)
-    function endContract() {
+    function endContract() public {
         require(msg.sender == contractCreator || msg.sender == chairperson, "Not the rights to perform this action");
 
         emit ContractEnded();
         ended = true;
-        return true;
+        return;
     }
 
     // / Withdraw a bid that was overbid
-    function withdraw()public returns(bool) {
+    function withdraw() public returns(bool) {
         uint amount = pendingReturns[msg.sender];
 
         if (amount > 0) {
@@ -152,7 +156,9 @@ contract KnockOut {
     }
 
     // Stock price is under the threshold -> contract is dissolved, contractCreator takes all the money
-    function knockOut() { // ShareHolder doesn't receive any money
+    // ShareHolder doesn't receive any money
+    function knockOut() public {
+        uint payoutsum = 0;
         for (uint p = 0; p < activeShareHolder.length; p ++) {
             payoutsum += activeShareHolder[p].amount;
             // todo:Check if works
@@ -166,13 +172,13 @@ contract KnockOut {
 
     // Calculate the return of the shareHolder
     // Based on the previous day stock price
-    function CalcAndUpdatePendingReturn(ShareHolder shareHolder) {
-        uint stock_price_diff = (last_closing_price - shareHolder.buying_closing_price) / shareHolder.buying_closing_price;
-        uint pendingReturn = shareHolder.amount * stock_price_diff * leverage;
+    // function CalcAndUpdatePendingReturn(ShareHolder memory shareHolder) public {
+    //     uint stock_price_diff = (last_closing_price - shareHolder.buying_closing_price) / shareHolder.buying_closing_price;
+    //     uint pendingReturn = shareHolder.amount * stock_price_diff * leverage;
 
-        pendingReturns[shareHolder.address] = pendingReturn;
-        return pendingReturn;
-    }
+    //     pendingReturns[shareHolder.account] = pendingReturn;
+    //     return;
+    // }
 
     // Getter/Setter
     function setrunEndTime(uint _newrunEndTime)public {

@@ -24,8 +24,8 @@ contract StockBetting {
     bool ended;
 
     // Events that will be emitted on changes.
-    event NewBid(address payable address, uint bidValue);
-    event Payout(address payable winner, uint payout);
+    event NewBid(address payable _address, uint _bidValue);
+    event Payout(address payable _winner, uint _payout);
 
     constructor(
         //todo payable
