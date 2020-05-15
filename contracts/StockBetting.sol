@@ -1,6 +1,5 @@
 pragma solidity 0.5.16;
 
-
 contract StockBetting {
     struct Bid {
         address payable account;
@@ -11,27 +10,22 @@ contract StockBetting {
 
     Bid[] public bids;
 
-    // mapping(address => Bid) public bids;
-    
-    // todo: Change to private
     // Time how long the contract is active 
     uint public runEndTime;
     
     // Time how long the bids are allowed
     uint public bidEndTime;
 
-    // admin of the contract -> StockVoting
+    // admin of the contract -> StockVoting.net
     address payable public chairperson;
-
-    //todo: publish address of winner (after contract ended)
 
     // Set to true at the end, disallows any change.
     // By default initialized to `false`.
     bool ended;
 
     // Events that will be emitted on changes.
+    event NewBid(address payable address, uint bidValue);
     event Payout(address payable winner, uint payout);
-    event Debug(uint value);
 
     constructor(
         //todo payable
@@ -70,20 +64,9 @@ contract StockBetting {
             amount: msg.value
         }));
 
+        emit NewBid(msg.sender, bidValue);
 
-        // if (highestBid != 0) {
-        //     // Sending back the money by simply using
-        //     // highestBidder.send(highestBid) is a security risk
-        //     // because it could execute an untrusted contract.
-        //     // It is always safer to let the recipients
-        //     // withdraw their money themselves.
-        //     pendingReturns[highestBidder] += highestBid;
-        // }
-        // highestBidder = msg.sender;
-        // highestBid = msg.value;
-
-        //todo: publish event when bidadded...
-        // emit HighestBidIncreased(msg.sender, msg.value);
+        return;
     }
 
     /// End the betting because the time is up 
@@ -142,9 +125,9 @@ contract StockBetting {
     }
 
     // Getter/Setter
-    function getBidofAccount(address payable bider) public view returns(uint) {
+    function getBidofAccount(address payable _accountToCheck) public view returns(uint) {
         for (uint p = 0; p < bids.length; p++) {
-            if (bids[p].account == bider){
+            if (bids[p].account == _accountToCheck){
                 return bids[p].bid;
             }
         }
