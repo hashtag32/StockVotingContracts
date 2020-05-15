@@ -24,8 +24,8 @@ contract StockBetting {
     bool ended;
 
     // Events that will be emitted on changes.
-    event NewBid(address payable _address, uint _bidValue);
-    event Payout(address payable _winner, uint _payout);
+    event NewBid(address payable account, uint bid, uint amount);
+    event Payout(address payable winner, uint payout);
 
     constructor(
         //todo payable
@@ -64,7 +64,7 @@ contract StockBetting {
             amount: msg.value
         }));
 
-        emit NewBid(msg.sender, bidValue);
+        emit NewBid(msg.sender, bidValue, msg.value);
 
         return;
     }

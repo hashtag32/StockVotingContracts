@@ -33,7 +33,11 @@ contract('StockBetting_unittest', (accounts) => {
       assert.equal(accountZero, chairPerson);
    })
    it('Bid function test', async () => {
-      await contractInstance.bid(bidValue1, { from: accountOne, value: 5 });
+      let bidCall=await contractInstance.bid(bidValue1, { from: accountOne, value: 5 });
+
+      truffleAssert.eventEmitted(bidCall, 'NewBid', (ev) => {
+         return (ev.account == accountOne) && (ev.bid.toNumber() == bidValue1) &&  (ev.amount.toNumber() == 5);
+      });
 
       const BidValueAcc1= (await contractInstance.getBidofAccount.call(accountOne)).toNumber();
 
