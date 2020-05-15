@@ -22,5 +22,5 @@ module.exports = function(deployer) {
   var knock_out_threshold=90;
   var leverage=15;
   var isPut=false;
-  deployer.deploy(KnockOut, chairperson, knock_out_threshold, leverage, startPrice, runTime, isPut);
+  deployer.deploy(KnockOut, chairPerson, knock_out_threshold, leverage, startPrice, runTime, isPut);
 };

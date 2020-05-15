@@ -19,7 +19,7 @@ contract KnockOut {
     // Time how long the bids are allowed
     uint public leverage;
     // If true the certificate is 'Put'. If false the certificate is 'Call'.
-    bool isPut;
+    bool public isPut;
     // Time how long the contract is active
     uint public runEndTime;
 
@@ -34,18 +34,19 @@ contract KnockOut {
     ShareHolder[] public activeShareHolder;
 
     // Allowed withdrawals of previous bids
-    mapping(address => uint)pendingReturns;
+    mapping(address => uint) public pendingReturns;
 
     // Will be updated every day
     uint public last_closing_price;
 
     // Please notice these events
     // New share bought also means that you have to share the pot in case the
-    event ShareBought(address payable shareHolderAddress, uint amount);
-    event ShareSold(address payable shareHolderAddress, uint amount);
+    event ShareBought_ev(address payable shareHolderAddress, uint amount);
+    event ShareSold_ev(address payable shareHolderAddress, uint amount);
     // The chairperson can only retract when no Users are active anymore
     // The contract is dissolved
-    event ContractEnded();
+    event KnockOut_ev(uint stockValue);
+    event ContractEnded_ev(address terminatorAddress);
 
     // param: _chairperson - The oracle/admin of this contract, a trusted party that obtains higher authority
     // param: _knock_out_threshold - Under/Over this threshold of the underlying, the shareholder
@@ -71,7 +72,7 @@ contract KnockOut {
 
         activeShareHolder.push(ShareHolder({account: msg.sender, amount: msg.value, buying_closing_price: last_closing_price}));
 
-        emit ShareBought(msg.sender, msg.value);
+        emit ShareBought_ev(msg.sender, msg.value);
 
         return;
     }
@@ -92,7 +93,7 @@ contract KnockOut {
             }
         }
 
-        emit ShareSold(msg.sender, msg.value);
+        emit ShareSold_ev(msg.sender, pendingReturns[msg.sender]);
 
         return;
     }
@@ -154,7 +155,7 @@ contract KnockOut {
     function endContract()public {
         require(msg.sender == contractCreator || msg.sender == chairperson, "Not the rights to perform this action");
 
-        emit ContractEnded();
+        emit ContractEnded_ev(msg.sender);
         ended = true;
         return;
     }
@@ -179,19 +180,19 @@ contract KnockOut {
     }
 
     // / Daily update by server -> Oracle (gives the minimum_daily and closing_price)
-    function daily_update(uint minimum_daily, uint _closing_price)external payable {
+    function update(uint _minimum, uint _closing_price)external payable {
         require(msg.sender == chairperson, "Not the rights to set the daily_minimum");
         require(!ended, "Contract has already ended");
 
         last_closing_price = _closing_price;
 
         if (isPut) {
-            if (minimum_daily > knock_out_threshold) {
-                knockOut();
+            if (_minimum > knock_out_threshold) {
+                knockOut(_minimum);
             }
         } else {
-            if (minimum_daily < knock_out_threshold) {
-                knockOut();
+            if (_minimum < knock_out_threshold) {
+                knockOut(_minimum);
             }
         }
 
@@ -200,7 +201,7 @@ contract KnockOut {
 
     // Stock price is under the threshold -> contract is dissolved, contractCreator takes all the money
     // ShareHolder doesn't receive any money
-    function knockOut()public {
+    function knockOut(uint stockValue)public {
         uint payoutsum = 0;
         for (uint p = 0; p < activeShareHolder.length; p ++) {
             payoutsum += activeShareHolder[p].amount;
@@ -209,6 +210,7 @@ contract KnockOut {
         }
         pendingReturns[contractCreator] = payoutsum + pot;
 
+        emit KnockOut_ev(stockValue);
         endContract();
         return;
     }
