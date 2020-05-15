@@ -1,5 +1,5 @@
-const StockBetting = artifacts.require('./StockBetting.sol')
-const assert = require('assert')
+const StockBetting = artifacts.require('./StockBetting.sol');
+const assert = require('assert');
 const truffleAssert = require('truffle-assertions');
 
 
