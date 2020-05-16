@@ -183,7 +183,7 @@ contract KnockOut {
 
     // / Daily update by server -> Oracle (gives the minimum_daily and closing_price)
     function update(uint _minimum, uint _closing_price)external payable {
-        require(msg.sender == chairperson, "Not the rights to set the daily_minimum");
+        require(msg.sender == chairperson, "Not the rights to perform this action");
         require(_minimum <= _closing_price, "Input is wrong");
         require(!ended, "Contract has already ended");
 
@@ -212,21 +212,12 @@ contract KnockOut {
             delete activeShareHolder[p];
         }
         pendingReturns[contractCreator] = payoutsum + pot;
+        pot=0;
 
         emit KnockOut_ev(stockValue);
         endContract();
         return;
     }
-
-    // Calculate the return of the shareHolder
-    // Based on the previous day stock price
-    // function CalcAndUpdatePendingReturn(ShareHolder memory shareHolder) public {
-    //     uint stock_price_diff = (last_closing_price - shareHolder.buying_closing_price) / shareHolder.buying_closing_price;
-    //     uint pendingReturn = shareHolder.amount * stock_price_diff * leverage;
-
-    //     pendingReturns[shareHolder.account] = pendingReturn;
-    //     return;
-    // }
 
     // Getter/Setter
     function setrunEndTime(uint _newrunEndTime)public {

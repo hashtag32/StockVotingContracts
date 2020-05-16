@@ -14,7 +14,7 @@ contract("knockOut_basics", (accounts) => {
 
     runTime = 86400 * 30;
     chairperson_exp = accounts[0];
-    knock_out_threshold_exp = 90;
+    knock_out_threshold_exp = 70;
     leverage_exp = 5;
     last_closing_price_exp = startPrice = 100;
     pot_exp = 1000;
@@ -68,7 +68,7 @@ contract("KnockOut_integration", (accounts) => {
       { from: contractCreator_exp, value: pot_exp }
     );
   });
-  it("Usual Workflow (account2 equal payout)", async () => {
+  it("Complete Workflow (account2 equal payout)", async () => {
     // Account2 buys and sell Share for the same price
     await contractInstance.buyShare({ from: accounts[2], value: 10 });
     await contractInstance.update(100, 100, { from: accounts[0] });
@@ -106,7 +106,7 @@ contract("KnockOut_integration", (accounts) => {
     );
     assert.equal(pendingReturnsAfter, 0);
   });
-  it("Usual Workflow (account2 gains profit)", async () => {
+  it("Complete Workflow (account2 gains profit)", async () => {
     // Account2 buys and sell Share for the same price
     let amount = 10;
     await contractInstance.buyShare({ from: accounts[2], value: amount });
@@ -162,7 +162,7 @@ contract("KnockOut_integration", (accounts) => {
     );
     assert.equal(pendingReturnsAfter, 0);
   });
-  it("Usual Workflow (account2 loses money)", async () => {
+  it("Complete Workflow (account2 loses money)", async () => {
     // Account2 buys and sell Share for the same price
     var amount = 10;
     await contractInstance.buyShare({ from: accounts[2], value: amount });
@@ -215,19 +215,94 @@ contract("KnockOut_integration", (accounts) => {
     );
     assert.equal(pendingReturnsAfter, 0);
   });
+  it("Complete Workflow (account2 total loss of amount)", async () => {
+    // Account2 buys and sell Share for the same price
+    var amount = 10;
+    var stockPrice = 75;
+    await contractInstance.buyShare({ from: accounts[2], value: amount });
+    await contractInstance.update(stockPrice, stockPrice, {
+      from: accounts[0],
+    });
+
+    // Is holding the shares
+    let activeShareHolderBefore = await contractInstance.activeShareHolder.call(
+      0
+    );
+    assert.equal(activeShareHolderBefore.account, accounts[2]);
+    assert.equal(activeShareHolderBefore.amount, amount);
+    assert.equal(activeShareHolderBefore.buying_closing_price, 100);
+
+    let payout_diff =
+      (amount *
+        leverage_exp *
+        (stockPrice - activeShareHolderBefore.buying_closing_price)) /
+      activeShareHolderBefore.buying_closing_price;
+    let payout_amount = amount + payout_diff;
+
+    if (payout_amount < 0) payout_amount = 0;
+
+    let sellShares = await contractInstance.sellShare({ from: accounts[2] });
+    truffleAssert.eventEmitted(sellShares, "ShareSold_ev", (ev) => {
+      return (
+        ev.shareHolderAddress == accounts[2] &&
+        ev.amount.toNumber() == payout_amount
+      );
+    });
+
+    // Shouldn't be holding the shares anymore
+    let activeShareHolderAfter = await contractInstance.activeShareHolder.call(
+      0
+    );
+    assert.notEqual(activeShareHolderAfter.account, accounts[2]);
+
+    // pot should be increased with the payout_amount
+    let potAfter = await contractInstance.pot.call();
+    assert.equal(potAfter, pot_exp + amount);
+
+    // Should be in pendingReturns
+    let pendingReturnsBefore = await contractInstance.pendingReturns.call(
+      accounts[2]
+    );
+    assert.equal(pendingReturnsBefore, payout_amount);
+
+    let withDrawResult = await contractInstance.withdraw({ from: accounts[2] });
+
+    // Shouldn't be in pendingReturns anymore
+    let pendingReturnsAfter = await contractInstance.pendingReturns.call(
+      accounts[2]
+    );
+    assert.equal(pendingReturnsAfter, 0);
+  });
   it("KnockOut", async () => {
-    await contractInstance.buyShare({ from: accounts[2], value: 10 });
+    var amount = 10;
+    await contractInstance.buyShare({ from: accounts[2], value: amount });
     await contractInstance.update(90, 90, { from: accounts[0] });
 
-    let updateWithKnockOut = await contractInstance.update(80, 80, {
+    let updateWithKnockOut = await contractInstance.update(60, 60, {
       from: accounts[0],
     });
     truffleAssert.eventEmitted(updateWithKnockOut, "KnockOut_ev", (ev) => {
-      return ev.stockValue == 80;
+      return ev.stockValue == 60;
     });
     truffleAssert.eventEmitted(updateWithKnockOut, "ContractEnded_ev", (ev) => {
       return ev.terminatorAddress == accounts[0];
     });
+
+    // Shouldn't be in pendingReturns anymore
+    let pendingReturnsAfterStakeHolder = await contractInstance.pendingReturns.call(
+      accounts[2]
+    );
+    assert.equal(pendingReturnsAfterStakeHolder, 0);
+
+    // Pot should be empty -> all money for the contractCreator
+    let potAfter = await contractInstance.pot.call();
+    assert.equal(potAfter, 0);
+
+    // ContractCreator should hold all money available
+    let pendingReturnsAfterCreator = await contractInstance.pendingReturns.call(
+      accounts[1]
+    );
+    assert.equal(pendingReturnsAfterCreator, pot_exp + amount);
   });
 });
 
@@ -249,12 +324,40 @@ contract("KnockOut_functions", (accounts) => {
   it("update", async () => {
     var daily_minimum = 110;
     var last_closing_price = 110;
+
+    // Error case: Revert
+    await truffleAssert.reverts(
+      contractInstance.update(daily_minimum, last_closing_price, {
+        from: accounts[1],
+      }),
+      "Not the rights to perform this action"
+    );
+
+    // Error case: Revert
+    await truffleAssert.reverts(
+      contractInstance.update(110, 100, {
+        from: accounts[0],
+      }),
+      "Input is wrong"
+    );
+
+    // Normal usage
     await contractInstance.update(daily_minimum, last_closing_price, {
       from: accounts[0],
     });
 
     const last_closing_price_return = await contractInstance.last_closing_price.call();
     assert.equal(last_closing_price, last_closing_price_return);
+
+    // Knock Out
+    let updateWithKnockOut = await contractInstance.update(60, 60, {
+      from: accounts[0],
+    });
+    truffleAssert.eventEmitted(updateWithKnockOut, "KnockOut_ev", (ev) => {
+      return ev.stockValue == 60;
+    });
+
+    //todo: isPut
   });
 
   it("knockOut", async () => {});
