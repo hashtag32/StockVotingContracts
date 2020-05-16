@@ -34,7 +34,7 @@ contract KnockOut {
     ShareHolder[] public activeShareHolder;
 
     // Allowed withdrawals of previous bids
-    mapping(address => uint) public pendingReturns;
+    mapping(address => uint)public pendingReturns;
 
     // Will be updated every day
     uint public last_closing_price;
@@ -47,6 +47,9 @@ contract KnockOut {
     // The contract is dissolved
     event KnockOut_ev(uint stockValue);
     event ContractEnded_ev(address terminatorAddress);
+    event Debug(string test);
+    event Debug(uint test);
+    event Debug(int test);
 
     // param: _chairperson - The oracle/admin of this contract, a trusted party that obtains higher authority
     // param: _knock_out_threshold - Under/Over this threshold of the underlying, the shareholder
@@ -84,10 +87,11 @@ contract KnockOut {
         require(now <= runEndTime, "Contract is over the runtime");
 
         for (uint p = 0; p < activeShareHolder.length; p ++) {
-            if (activeShareHolder[p].account == msg.sender) {
-                int stock_price_diff = int((last_closing_price - activeShareHolder[p].buying_closing_price) / activeShareHolder[p].buying_closing_price);
+            if (activeShareHolder[p].account == msg.sender) { 
+                int buying_closing_price_int = int(activeShareHolder[p].buying_closing_price);
+                int stock_price_diff_10000 = int(10000 * (int(last_closing_price) - buying_closing_price_int) / buying_closing_price_int);
 
-                pendingReturns[activeShareHolder[p].account] = calcPendingReturn(stock_price_diff, activeShareHolder[p].amount);
+                pendingReturns[activeShareHolder[p].account] = calcPendingReturn(stock_price_diff_10000, activeShareHolder[p].amount);
 
                 delete activeShareHolder[p];
             }
@@ -98,41 +102,39 @@ contract KnockOut {
         return;
     }
 
-    function calcPendingReturn(int stock_price_diff, uint amount)public returns(uint) {
+    function calcPendingReturn(int stock_price_diff_10000, uint amount)public returns(uint) {
         uint pendingReturn;
 
         // Switch sign when turn
         if (isPut) {
-            stock_price_diff *= -1;
+            stock_price_diff_10000 *= -1;
         }
 
         // Positive or negative -> different cases
-        int return_amount = int(amount) * stock_price_diff * int(leverage);
-        uint return_amount_uint = uint(return_amount);
+        int amount_diff = int(amount) * stock_price_diff_10000 * int(leverage)/10000;
 
-        if (return_amount > 0) { 
-            // Positive performance
-            pendingReturn = amount + return_amount_uint;
+        if (amount_diff > 0) { // Positive performance
+            // This is a positive value in positive notation
+            uint amount_diff_uint_pos = uint(amount_diff);
+
+            // Money is shifted from pot to stakeholder
+            pendingReturn = amount + amount_diff_uint_pos;
+            pot = pot - amount_diff_uint_pos;
         } else {
-            if (return_amount_uint < amount) { 
-                // Negative performance
-                pendingReturn = amount - return_amount_uint;
-            } else { 
-                // Total loss
+            // This is a negative value in positive notation
+            uint amount_diff_uint_neg = uint(amount_diff*-1);
+
+            if (amount_diff_uint_neg < amount) { // Negative performance
+                // Money is shifted from amount (stakeHolder) to the pot
+                pendingReturn = amount - amount_diff_uint_neg;
+                pot = pot + amount_diff_uint_neg;
+            } else { // Total loss
                 pendingReturn = 0;
+                pot = pot + amount;
             }
         }
 
-
-        if (pot > pendingReturn) {
-            pot = pot - pendingReturn;
-        } else {
-            // The winner takes it all, has the right to withdraw all the pot
-            // pendingReturn should be then shareHolder[p].amount + pot 
-            pot = 0;
-        }
         return pendingReturn;
-
     }
 
     // The contract creator can decide to dissolve the contract, the pot goes back to him
@@ -182,6 +184,7 @@ contract KnockOut {
     // / Daily update by server -> Oracle (gives the minimum_daily and closing_price)
     function update(uint _minimum, uint _closing_price)external payable {
         require(msg.sender == chairperson, "Not the rights to set the daily_minimum");
+        require(_minimum <= _closing_price, "Input is wrong");
         require(!ended, "Contract has already ended");
 
         last_closing_price = _closing_price;
