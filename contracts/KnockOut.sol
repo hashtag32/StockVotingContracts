@@ -12,7 +12,7 @@ contract KnockOut {
     uint public pot;
     // By default initialized to `false`.
     // Set to true at the end, disallows any change.
-    bool ended;
+    bool public ended;
 
     // Investment specifics //
     uint public knock_out_threshold;
@@ -87,13 +87,14 @@ contract KnockOut {
         require(now <= runEndTime, "Contract is over the runtime");
 
         for (uint p = 0; p < activeShareHolder.length; p ++) {
-            if (activeShareHolder[p].account == msg.sender) { 
+            if (activeShareHolder[p].account == msg.sender) {
                 int buying_closing_price_int = int(activeShareHolder[p].buying_closing_price);
                 int stock_price_diff_10000 = int(10000 * (int(last_closing_price) - buying_closing_price_int) / buying_closing_price_int);
 
                 pendingReturns[activeShareHolder[p].account] = calcPendingReturn(stock_price_diff_10000, activeShareHolder[p].amount);
 
                 delete activeShareHolder[p];
+                activeShareHolder.length --;
             }
         }
 
@@ -111,20 +112,21 @@ contract KnockOut {
         }
 
         // Positive or negative -> different cases
-        int amount_diff = int(amount) * stock_price_diff_10000 * int(leverage)/10000;
+        int amount_diff = int(amount) * stock_price_diff_10000 * int(leverage) / 10000;
 
-        if (amount_diff > 0) { // Positive performance
+        if (amount_diff > 0) {
+            // Positive performance
             // This is a positive value in positive notation
             uint amount_diff_uint_pos = uint(amount_diff);
 
             // Money is shifted from pot to stakeholder
             pendingReturn = amount + amount_diff_uint_pos;
             pot = pot - amount_diff_uint_pos;
-        } else {
-            // This is a negative value in positive notation
-            uint amount_diff_uint_neg = uint(amount_diff*-1);
+        } else { // This is a negative value in positive notation
+            uint amount_diff_uint_neg = uint(amount_diff * -1);
 
-            if (amount_diff_uint_neg < amount) { // Negative performance
+            if (amount_diff_uint_neg < amount) {
+                // Negative performance
                 // Money is shifted from amount (stakeHolder) to the pot
                 pendingReturn = amount - amount_diff_uint_neg;
                 pot = pot + amount_diff_uint_neg;
@@ -143,11 +145,8 @@ contract KnockOut {
         // Only possible if no activeShareHolder are encountered
         require(activeShareHolder.length == 0, "We have active shareHolders");
 
-        for (uint p = 0; p < activeShareHolder.length; p ++) {
-            delete activeShareHolder[p];
-        }
-
         pendingReturns[contractCreator] = pot;
+        pot = 0;
         endContract();
         return;
     }
@@ -167,15 +166,8 @@ contract KnockOut {
         uint amount = pendingReturns[msg.sender];
 
         if (amount > 0) {
-            // It is important to set this to zero because the recipient
-            // can call this function again as part of the receiving call
-            // before `send` returns.
             pendingReturns[msg.sender] = 0;
-
-            if (!msg.sender.send(amount)) { // No need to call throw here, just reset the amount owing
-                pendingReturns[msg.sender] = amount;
-                return false;
-            }
+            msg.sender.transfer(amount);
         }
 
         return true;
@@ -210,9 +202,10 @@ contract KnockOut {
             payoutsum += activeShareHolder[p].amount;
             // todo:Check if works
             delete activeShareHolder[p];
+            activeShareHolder.length --;
         }
         pendingReturns[contractCreator] = payoutsum + pot;
-        pot=0;
+        pot = 0;
 
         emit KnockOut_ev(stockValue);
         endContract();

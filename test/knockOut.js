@@ -48,12 +48,6 @@ contract("knockOut_basics", (accounts) => {
     assert.equal(isPut, isPut_exp);
     assert.equal(contractCreator, contractCreator_exp);
   });
-  it("Bid function test", async () => {});
-  it("Payout event published", async () => {});
-
-  it("Trying to end contract to !chairperson && already ended", async () => {});
-
-  it("Trying to end contract with chairperson, but already ended", async () => {});
 });
 
 contract("KnockOut_integration", (accounts) => {
@@ -87,10 +81,10 @@ contract("KnockOut_integration", (accounts) => {
     });
 
     // Shouldn't be holding the shares anymore
-    let activeShareHolderAfter = await contractInstance.activeShareHolder.call(
-      0
-    );
-    assert.notEqual(activeShareHolderAfter.account, accounts[2]);
+    //  let activeShareHolderAfter = await contractInstance.activeShareHolder.call(
+    //    0
+    //  );
+    //  assert.notEqual(activeShareHolderAfter.account, accounts[2]);
 
     // Should be in pendingReturns && Check worth of shares
     let pendingReturnsBefore = await contractInstance.pendingReturns.call(
@@ -139,10 +133,10 @@ contract("KnockOut_integration", (accounts) => {
     });
 
     // Shouldn't be holding the shares anymore (not 100% correct, actually list)
-    let activeShareHolderAfter = await contractInstance.activeShareHolder.call(
-      0
-    );
-    assert.notEqual(activeShareHolderAfter.account, accounts[2]);
+    //  let activeShareHolderAfter = await contractInstance.activeShareHolder.call(
+    //    0
+    //  );
+    //  assert.notEqual(activeShareHolderAfter.account, accounts[2]);
 
     // pot should be decreased with the payout_amount
     let potAfter = await contractInstance.pot.call();
@@ -192,10 +186,10 @@ contract("KnockOut_integration", (accounts) => {
     });
 
     // Shouldn't be holding the shares anymore
-    let activeShareHolderAfter = await contractInstance.activeShareHolder.call(
-      0
-    );
-    assert.notEqual(activeShareHolderAfter.account, accounts[2]);
+    //  let activeShareHolderAfter = await contractInstance.activeShareHolder.call(
+    //    0
+    //  );
+    //  assert.notEqual(activeShareHolderAfter.account, accounts[2]);
 
     // pot should be increased with the payout_amount
     let potAfter = await contractInstance.pot.call();
@@ -250,10 +244,10 @@ contract("KnockOut_integration", (accounts) => {
     });
 
     // Shouldn't be holding the shares anymore
-    let activeShareHolderAfter = await contractInstance.activeShareHolder.call(
-      0
-    );
-    assert.notEqual(activeShareHolderAfter.account, accounts[2]);
+    //  let activeShareHolderAfter = await contractInstance.activeShareHolder.call(
+    //    0
+    //  );
+    //  assert.notEqual(activeShareHolderAfter.account, accounts[2]);
 
     // pot should be increased with the payout_amount
     let potAfter = await contractInstance.pot.call();
@@ -308,19 +302,95 @@ contract("KnockOut_integration", (accounts) => {
 
 contract("KnockOut_functions", (accounts) => {
   beforeEach(async () => {
-    contractInstance = await KnockOut.deployed();
-    accountZero = accounts[0];
-    accountOne = accounts[1];
-    accountTwo = accounts[2];
+    contractInstance = await KnockOut.new(
+      accounts[0],
+      knock_out_threshold_exp,
+      leverage_exp,
+      startPrice,
+      runTime,
+      isPut_exp,
+      { from: contractCreator_exp, value: pot_exp }
+    );
   });
   it("buyShare ", async () => {});
 
   it("sellShare", async () => {});
 
-  it("retractContract", async () => {});
+  it("retractContract", async () => {
+    var amount = 10;
+    await contractInstance.buyShare({ from: accounts[2], value: amount });
 
-  it("endContract", async () => {});
-  it("withdraw", async () => {});
+    // Error case: Account2 tries to retract
+    await truffleAssert.reverts(
+      contractInstance.retractContract({
+        from: accounts[2],
+      }),
+      "Not the rights to perform this action"
+    );
+
+    // Error case: Creator tries to retract while share are hold
+    await truffleAssert.reverts(
+      contractInstance.retractContract({
+        from: accounts[0],
+      }),
+      "We have active shareHolders"
+    );
+
+    // Success: Retraction by creator /pendingReturns are updated
+    await contractInstance.sellShare({ from: accounts[2] });
+    let pendingReturnsBeforeAccount2 = await contractInstance.pendingReturns.call(
+      accounts[2]
+    );
+    assert.equal(pendingReturnsBeforeAccount2, amount);
+
+    let pendingReturnsBeforeCreator = await contractInstance.pendingReturns.call(
+      accounts[0]
+    );
+    assert.equal(pendingReturnsBeforeCreator, 0);
+
+    let potBefore = await contractInstance.pot.call();
+    assert.equal(potBefore, pot_exp);
+
+    // ChairPerson retracts
+    await contractInstance.retractContract({
+      from: accounts[0],
+    });
+
+    let potAfter = await contractInstance.pot.call();
+    assert.equal(potAfter, 0);
+
+    let pendingReturnsAfterCreator = await contractInstance.pendingReturns.call(
+      accounts[1]
+    );
+    assert.equal(pendingReturnsAfterCreator, pot_exp);
+  });
+
+  it("endContract", async () => {
+    // Error case: Revert
+    await truffleAssert.reverts(
+      contractInstance.endContract({
+        from: accounts[2],
+      }),
+      "Not the rights to perform this action"
+    );
+
+    let endedBefore = await contractInstance.ended.call();
+    assert.equal(endedBefore, false);
+
+    let endContractCall = await contractInstance.endContract({
+      from: accounts[0],
+    });
+    truffleAssert.eventEmitted(endContractCall, "ContractEnded_ev", (ev) => {
+      return ev.terminatorAddress == accounts[0];
+    });
+
+    let endedAfter = await contractInstance.ended.call();
+    assert.equal(endedAfter, true);
+  });
+  it("withdraw", async () => {
+    // Withdraw without pendingReturn (nothing happens)
+    let withDrawResult = await contractInstance.withdraw({ from: accounts[3] });
+  });
   it("update", async () => {
     var daily_minimum = 110;
     var last_closing_price = 110;
@@ -364,30 +434,3 @@ contract("KnockOut_functions", (accounts) => {
 
   it("calcPendingReturn ", async () => {});
 });
-
-// contract('KnockOut_setter', (accounts) => {
-//    beforeEach(async () => {
-//       contractInstance = await KnockOut.deployed();
-//       accountZero = accounts[0];
-//       accountOne = accounts[1];
-
-//       chairPerson=accountTwo;
-//       var runTime= 86400 * 100;
-//       var bidTime= 86400 * 160;
-//       contractInstance = await KnockOut.new(chairPerson, runTime,bidTime);
-//    })
-//    it('chairperson', async () => {
-//       const chairPersonContract= await contractInstance.chairperson.call();
-//       assert.equal(accountTwo, chairPersonContract);
-//    })
-
-//    // it('bidEndTime', async () => {
-//    //    const bidEndTimeContract= await contractInstance.bidEndTime.call();
-//    //    assert.equal(now86400 * 160, bidEndTimeContract);
-//    // })
-
-//    // it('runEndTime', async () => {
-//    //    const runEndTimeContract= await contractInstance.runEndTime.call();
-//    //    assert.equal(86400 * 100, runEndTimeContract);
-//    // })
-// })
