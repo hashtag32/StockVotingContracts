@@ -47,14 +47,11 @@ contract KnockOut {
     // The contract is dissolved
     event KnockOut_ev(uint stockValue);
     event ContractEnded_ev(address terminatorAddress);
-    event Debug(string test);
-    event Debug(uint test);
-    event Debug(int test);
 
     // param: _chairperson - The oracle/admin of this contract, a trusted party that obtains higher authority
     // param: _knock_out_threshold - Under/Over this threshold of the underlying, the shareholder
-    // param: _leverage,
-    // param: _runTime -
+    // param: _leverage - Leverage for the whole certificate
+    // param: _runTime - After this runtime, the contract ends
     // param: _isPut - Determines whether the certificate type is Put or Call
     constructor(address payable _chairperson, uint _knock_out_threshold, uint _leverage, uint _startPrice, uint _runTime, bool _isPut)
     public payable {
@@ -103,7 +100,7 @@ contract KnockOut {
         return;
     }
 
-    function calcPendingReturn(int stock_price_diff_10000, uint amount)public returns(uint) {
+    function calcPendingReturn(int stock_price_diff_10000, uint amount)private returns(uint) {
         uint pendingReturn;
 
         // Switch sign when turn
@@ -196,7 +193,9 @@ contract KnockOut {
 
     // Stock price is under the threshold -> contract is dissolved, contractCreator takes all the money
     // ShareHolder doesn't receive any money
-    function knockOut(uint stockValue)public {
+    function knockOut(uint stockValue)private {
+        require(msg.sender == chairperson, "Not the rights to perform this action");
+
         uint payoutsum = 0;
         for (uint p = 0; p < activeShareHolder.length; p ++) {
             payoutsum += activeShareHolder[p].amount;
