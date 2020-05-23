@@ -4,8 +4,7 @@ function main(contract_address, low_price, closing_price)
   var gas_estimate = 3000000;
   var gas_price = web3.toWei(35, "gwei");
 
-  var firstAccount="0x6fb69574ffd1de3a92b1b44e886f108934f0925f";
-  // var contract_address="0xDdc75D5126f9a68C6eF3330308dC71B3dCE4Ea60";
+  var firstAccount=eth.accounts[0];
 
   var contractAbi = eth.contract(ko_abi);
   var contractInstance = contractAbi.at(contract_address);
